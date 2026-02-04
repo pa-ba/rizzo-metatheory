@@ -176,7 +176,7 @@ lemma HasType.fmap : A.Open → H # δ # Γ ⊢ fmap A C ∷ (B ↠ C) ↠ A.sub
 ------------------------------------------------
 
 --------------------------
--- Lemma 5.2: weakening --
+-- Lemma 5.3: weakening --
 --------------------------
 
 @[grind .]

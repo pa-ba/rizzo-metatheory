@@ -109,7 +109,7 @@ theorem Stepsω.welltyped_heap : ∅ # δ ⊢ t ∷ A → (S : (t, δ) ⟹ω) �
 
 
 -----------------------------------------------
--- Theorem 4.4: The step semantics is causal --
+-- Theorem 4.3: The step semantics is causal --
 -----------------------------------------------
 
 theorem Stepsω.causal (S1 S2 : (t, δ0) ⟹ω) :

@@ -6,7 +6,7 @@ open Val
 open Typ
 
 ---------------------
--- Proposition 5.6 --
+-- Proposition 5.7 --
 ---------------------
 
 theorem fund_prop {σ : Store} : σ.now.type # δ # Γ ⊢ t ∷ A → (σ ⧸ δ).Sub ε → HRel ε σ.now  → γ ∈ C⟦Γ⟧ε → t.subs γ 0 ∈ T⟦A⟧ε  := by
@@ -407,7 +407,7 @@ lemma IsHeap.HRel_Sub : δ ⊢ₕ η → η.Sub σ.now → HRel (σ ⧸ δ) η :
       simp
 
 ----------------------------------------------------------
--- Corollary 5.8: Fundamental property for closed terms --
+-- Corollary 5.9: Fundamental property for closed terms --
 ----------------------------------------------------------
 
 theorem fund_prop_closed : ε ⊩ t ∷ A →  t ∈ T⟦A⟧ε  := by

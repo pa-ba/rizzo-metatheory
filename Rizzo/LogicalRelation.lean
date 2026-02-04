@@ -467,7 +467,7 @@ lemma VRel.Sub_open : WfSemSub ρ → v ∈ V⟦A⟧ ρ # ε → ε.Sub ε' → 
   intros; apply W <;> assumption
 
 ------------------------
--- Lemma 5.7 (part 1) --
+-- Lemma 5.8 (part 1) --
 ------------------------
 
 lemma VRel.Sub' : v ∈ V⟦A⟧ ε → ε.Sub ε' → v ∈ V⟦A⟧ ε' := by
@@ -476,7 +476,7 @@ lemma VRel.Sub' : v ∈ V⟦A⟧ ε → ε.Sub ε' → v ∈ V⟦A⟧ ε' := by
   simp
 
 ------------------------
--- Lemma 5.7 (part 2) --
+-- Lemma 5.8 (part 2) --
 ------------------------
 
 lemma CRel.Sub' : γ ∈ C⟦Γ⟧ε → ε.Sub ε' → γ ∈ C⟦Γ⟧ε' := by
@@ -552,7 +552,7 @@ lemma HRel.lookup_VRel : HRel ε η → s ∈ AList.lookup l η → s.head ∈ V
 
 
 ------------------------
--- Lemma 5.7 (part 3) --
+-- Lemma 5.8 (part 3) --
 ------------------------
 
 lemma HRel.Sub : HRel ε η → ε.Sub ε' → HRel ε' η := by

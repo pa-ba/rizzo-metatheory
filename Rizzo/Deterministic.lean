@@ -257,7 +257,7 @@ theorem Updates.determ : ε [i]⇒* ε1 → ε [i]⇒* ε2 → ε1.earlier = ∅
 
 
 ---------------------------------------------------
--- Lemma 4.3 (ii):                               --
+-- Lemma 5.1 (ii):                               --
 -- The reactive step semantics is deterministic  --
 ---------------------------------------------------
 
@@ -270,7 +270,7 @@ theorem ReactStep.determ : e [i]⟹ e1 → e [i]⟹ e2 → e1 = e2 := by
 
 
 --------------------------------------------------------
--- Lemma 4.3 (i):                                     --
+-- Lemma 5.1 (i):                                     --
 -- The initialisation step semantics is deterministic --
 --------------------------------------------------------
 

@@ -6,7 +6,7 @@ open Typ
 
 
 -----------------------------------
--- Proposition 5.4 (i): Progress --
+-- Proposition 5.5 (i): Progress --
 -----------------------------------
 
 theorem Eval.progress : ε ⊩ t ∷ A → ∃ v ε', (t,ε) ⇓ (v, ε') := by
@@ -21,7 +21,7 @@ lemma sync_cases {b1 b2 : Bool} : b1 ∨ b2 → (b1 ∧ ¬ b2) ∨ (b2 ∧ ¬ b1
 
 
 ------------------------------------
--- Proposition 5.4 (ii): Progress --
+-- Proposition 5.5 (ii): Progress --
 ------------------------------------
 
 theorem Adv.progress {v : Val} : v.ticked ε.now i.chan →  ε.chans ⊢ᵢ i → ε ⊩ v ∷ delayE A → ∃ v' ε', (v, ε) [i]⇘  (v', ε') := by
@@ -113,7 +113,7 @@ theorem Adv.progress {v : Val} : v.ticked ε.now i.chan →  ε.chans ⊢ᵢ i �
 
 
 -------------------------------------
--- Proposition 5.4 (iii): Progress --
+-- Proposition 5.5 (iii): Progress --
 -------------------------------------
 
 theorem Update.progress : ε.chans ⊢ᵢ i → ⊢ₑ ε → ε.earlier ≠ ∅ → ∃ ε', ε [ i ]⇒ ε' := by
@@ -188,7 +188,7 @@ theorem Updates.progress : ε.chans ⊢ᵢ i → ⊢ₑ ε → ∃ ε', ε [ i ]
 
 
 -----------------------------------
--- Proposition 5.4 (v): Progress --
+-- Proposition 5.5 (v): Progress --
 -----------------------------------
 
 theorem ReactStep.progress : δ ⊢ᵢ i → δ ⊢ₕ η → ∃ η' δ' , (v, η, δ) [ i ]⟹ (v, η', δ') := by
@@ -204,7 +204,7 @@ theorem ReactStep.progress : δ ⊢ᵢ i → δ ⊢ₕ η → ∃ η' δ' , (v, 
   solve_by_elim
 
 ------------------------------------
--- Proposition 5.4 (iv): Progress --
+-- Proposition 5.5 (iv): Progress --
 ------------------------------------
 
 theorem InitStep.progress : ∅ # δ ⊢ t ∷ A → ∃ v η δ' , (t, δ) init⟹ (v, η, δ') := by

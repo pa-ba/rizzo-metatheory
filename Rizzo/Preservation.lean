@@ -50,7 +50,7 @@ open Val Typ
 open Term
 
 --------------------------------------------
--- Proposition 5.1 (i): type preservation --
+-- Proposition 5.2 (i): type preservation --
 --------------------------------------------
 
 theorem Eval.preserve :
@@ -232,7 +232,7 @@ lemma IsInp.Sub : δ.Sub δ' → δ ⊢ᵢ i → δ' ⊢ᵢ i := by
 
 
 ---------------------------------------------
--- Proposition 5.1 (ii): type preservation --
+-- Proposition 5.2 (ii): type preservation --
 ---------------------------------------------
 
 theorem Adv.preserve {v : Val} :
@@ -337,7 +337,7 @@ lemma IsEnv.move :
 
 
 ----------------------------------------------
--- Proposition 5.1 (iii): type preservation --
+-- Proposition 5.2 (iii): type preservation --
 ----------------------------------------------
 
 theorem Update.preserve : ε.chans ⊢ᵢ i → ⊢ₑ ε →  ε [ i ]⇒ ε' → ⊢ₑ ε' := by
@@ -424,7 +424,7 @@ lemma Updates.incr_heap_type :
 
 
 ------------------------
--- Lemma 5.3 (part 1) --
+-- Lemma 5.4 (part 1) --
 ------------------------
 
 lemma ReactStep.incr_heap_type :
@@ -443,7 +443,7 @@ lemma ReactStep.incr_heap_type :
     apply T.end_step'
 
 ------------------------
--- Lemma 5.3 (part 2) --
+-- Lemma 5.4 (part 2) --
 ------------------------
 
 lemma ReactStep.incr_chans :
@@ -454,7 +454,7 @@ lemma ReactStep.incr_chans :
 
 
 --------------------------------------------
--- Proposition 5.1 (v): type preservation --
+-- Proposition 5.2 (v): type preservation --
 --------------------------------------------
 
 theorem ReactStep.preserve_term {v v' : Val} :
@@ -469,7 +469,7 @@ theorem ReactStep.preserve_term {v v' : Val} :
 
 
 ----------------------------------------------------
--- Proposition 5.1 (iv) part 1: type preservation --
+-- Proposition 5.2 (iv) part 1: type preservation --
 ----------------------------------------------------
 
 theorem InitStep.preserve_heap : ∅ # δ ⊢ t ∷ A → (t, δ) init⟹ (v, η,  δ') →  δ' ⊢ₕ η := by
@@ -481,7 +481,7 @@ theorem InitStep.preserve_heap : ∅ # δ ⊢ t ∷ A → (t, δ) init⟹ (v, η
   simp[*]
 
 ----------------------------------------------------
--- Proposition 5.1 (iv) part 2: type preservation --
+-- Proposition 5.2 (iv) part 2: type preservation --
 ----------------------------------------------------
 
 theorem InitStep.preserve_term : ∅ # δ ⊢ t ∷ A → (t, δ) init⟹ (v, η,  δ') →  η.type # δ' ⊢ v ∷ A := by

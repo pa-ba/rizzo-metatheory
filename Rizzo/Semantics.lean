@@ -123,7 +123,7 @@ inductive InitStep : Term × ChanCtx → Val × Heap × ChanCtx → Prop where
 notation : 80 x : 90 " init⟹ " y : 90 => InitStep x y
 
 ---------------
--- Lemma 5.5 --
+-- Lemma 5.6 --
 ---------------
 
 /--
