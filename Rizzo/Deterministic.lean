@@ -78,11 +78,11 @@ theorem Eval.determ : e ⇓ e1 → e ⇓ e2 → e1 = e2 := by
   case pr1 IH =>
     cases R2 with
     | value V => cases V
-    | pr1 R2' => apply IH at R2'; injections;simp[Subtype.eq_iff, *]
+    | pr1 R2' => apply IH at R2'; injections;simp[Subtype.ext_iff, *]
   case pr2 IH =>
     cases R2 with
     | value V => cases V
-    | pr2 R2' => apply IH at R2'; injections;simp[Subtype.eq_iff, *]
+    | pr2 R2' => apply IH at R2'; injections;simp[Subtype.ext_iff, *]
   case cons IH =>
     cases R2 with
     | value V =>
@@ -118,7 +118,7 @@ theorem Eval.determ : e ⇓ e1 → e ⇓ e2 → e1 = e2 := by
     | value V => cases V
     | case1 R21 R22 =>
       apply IH1 at R21;
-      injections;simp[Subtype.eq_iff, *] at *
+      injections;simp[Subtype.ext_iff, *] at *
       apply IH2 at R22; cases R22
       split_ands<;>assumption
     | case2 R21 R22 => apply IH1 at R21; injections
@@ -127,7 +127,7 @@ theorem Eval.determ : e ⇓ e1 → e ⇓ e2 → e1 = e2 := by
     | value V => cases V
     | case2 R21 R22 =>
       apply IH1 at R21;
-      injections;simp[Subtype.eq_iff, *] at *
+      injections;simp[Subtype.ext_iff, *] at *
       apply IH2 at R22; cases R22
       split_ands<;>assumption
     | case1 R21 R22 => apply IH1 at R21; injections

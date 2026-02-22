@@ -275,13 +275,9 @@ lemma IsEarlierHeap.cons_inv : H # δ ⊩ₕ η.concat l s p
     contradiction
   case cons η' =>
     simp[AList.concat] at E
-    rewrite[<- List.concat_eq_append] at E
-    rewrite[<- List.concat_eq_append] at E
-    apply List.of_concat_eq_concat at E
-    rcases E with ⟨E1, E2⟩
+    rcases E with ⟨E1, ⟨rfl, rfl⟩⟩
     rw [<- AList.ext_iff] at E1
     subst E1
-    cases E2
     constructor;split_ands<;>assumption
 
 lemma IsEnv.tail_type : ⊢ₑ (ηN ✓[D] AList.concat  ηE l' s p ⧸ δ) →

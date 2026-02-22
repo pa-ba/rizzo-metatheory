@@ -176,7 +176,7 @@ lemma Adv.appE_decompose :
   generalize E : (Val.delay t).appE v = t'
   intro R
   cases R <;> try cases E
-  injections; rw[<-Subtype.eq_iff] at *;subst_eqs
+  injections; rw[<-Subtype.ext_iff] at *;subst_eqs
   constructor;constructor; constructor;assumption;assumption
 
 
@@ -185,7 +185,7 @@ lemma Adv.tail_decompose :
   generalize E : Val.tail v = t'
   intro R
   cases R <;> try cases E
-  injections; rw[<-Subtype.eq_iff] at *;subst_eqs
+  injections; rw[<-Subtype.ext_iff] at *;subst_eqs
   simp
 
 lemma Adv.sync1_decompose : v1.ticked ε.now i.chan → ¬ v2.ticked ε.now i.chan →
@@ -195,12 +195,12 @@ lemma Adv.sync1_decompose : v1.ticked ε.now i.chan → ¬ v2.ticked ε.now i.ch
   intro M1 M2 R
   cases R <;> try solve | cases E
   case sync1 =>
-    injections; rw[<-Subtype.eq_iff] at * ;subst_eqs
+    injections; rw[<-Subtype.ext_iff] at * ;subst_eqs
     constructor; constructor; constructor;
     rfl; assumption
   case sync2 M' _ | sync3 M' _ =>
     simp at M1 M2 M'
-    injections; rw[<-Subtype.eq_iff] at * ;subst_eqs
+    injections; rw[<-Subtype.ext_iff] at * ;subst_eqs
     grind
 
 lemma Adv.sync2_decompose : v2.ticked ε.now i.chan → ¬ v1.ticked ε.now i.chan →
@@ -210,12 +210,12 @@ lemma Adv.sync2_decompose : v2.ticked ε.now i.chan → ¬ v1.ticked ε.now i.ch
   intro M1 M2 R
   cases R <;> try solve | cases E
   case sync2 =>
-    injections; rw[<-Subtype.eq_iff] at * ;subst_eqs
+    injections; rw[<-Subtype.ext_iff] at * ;subst_eqs
     constructor; constructor; constructor;
     rfl; assumption
   case sync1 M' _ | sync3 M' _ =>
     simp at M1 M2 M'
-    injections; rw[<-Subtype.eq_iff] at * ;subst_eqs
+    injections; rw[<-Subtype.ext_iff] at * ;subst_eqs
     grind
 
 
@@ -226,12 +226,12 @@ lemma Adv.sync3_decompose : v1.ticked ε.now i.chan → v2.ticked ε.now i.chan 
   intro M1 M2 R
   cases R <;> try solve | cases E
   case sync3 =>
-    injections; rw[<-Subtype.eq_iff] at * ;subst_eqs
+    injections; rw[<-Subtype.ext_iff] at * ;subst_eqs
     constructor; constructor; constructor;constructor
     split_ands; rfl; assumption; assumption
   case sync1 M' _ | sync2 M' _ =>
     simp at M1 M2 M'
-    injections; rw[<-Subtype.eq_iff] at * ;subst_eqs
+    injections; rw[<-Subtype.ext_iff] at * ;subst_eqs
     grind
 
 /--

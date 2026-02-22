@@ -3,6 +3,12 @@
 This repository contains the Lean formalisation of Rizzo as presented
 in the paper [*Simple Modal Types for Functional Reactive Programming*](https://bahr.io/pubs/entries/rizzo.html).
 
+## How to check this formalisation
+
+To check the formalisation, you can build this project by issuing
+the command `lake build`. Alternatively, you can open the file
+[Rizzo.lean](Rizzo.lean) in VS Code.
+
 ## Overview of theorems and lemmas from the paper
 
 - [Theorem 4.1 (i)](Rizzo/StepSequence.lean#L9)
