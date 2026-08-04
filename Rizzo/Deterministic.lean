@@ -1,5 +1,30 @@
 import Rizzo.Semantics
 
+
+------------------------------
+-- Two local helper tactics --
+------------------------------
+
+set_option hygiene false in
+/-- Determinism dispatch for a unary congruence constructor `c`. -/
+local macro "det_unary " c:ident : tactic =>
+  `(tactic|
+    cases R2 with
+    | value V => (cases V with | $c:ident V => (apply Eval.value at V; apply IH at V; cases V; rfl))
+    | $c:ident R2' => (apply IH at R2'; cases R2'; rfl))
+
+set_option hygiene false in
+/-- Determinism dispatch for a binary congruence constructor `c`. -/
+local macro "det_binary " c:ident : tactic =>
+  `(tactic|
+    cases R2 with
+    | value V => (cases V with | $c:ident V1 V2 =>
+        (apply Eval.value at V1; apply IH1 at V1;
+         apply Eval.value at V2; apply IH2 at V2;
+         cases V1; cases V2; rfl))
+    | $c:ident R21 R22 =>
+        (apply IH1 at R21; cases R21; apply IH2 at R22; cases R22; rfl))
+
 theorem Eval.determ : e ⇓ e1 → e ⇓ e2 → e1 = e2 := by
   intro R1
   revert e2
@@ -7,74 +32,32 @@ theorem Eval.determ : e ⇓ e1 → e ⇓ e2 → e1 = e2 := by
   case value V =>
     apply Eval.IsValue_rfl V at R2;
     cases R2; subst_eqs; rfl
-  case pair IH1 IH2 =>
-    cases R2 with
-    | value V =>
-      cases V with | pair V1 V2
-      apply Eval.value at V1; apply IH1 at V1
-      apply Eval.value at V2; apply IH2 at V2
-      cases V1; cases V2; rfl
-    | pair R21 R22 =>
-      apply IH1 at R21; cases R21
-      apply IH2 at R22; cases R22
-      rfl
-  case appE IH1 IH2 =>
-    cases R2 with
-    | value V =>
-      cases V with | appE V1 V2
-      apply Eval.value at V1; apply IH1 at V1
-      apply Eval.value at V2; apply IH2 at V2
-      cases V1; cases V2; rfl
-    | appE R21 R22 =>
-      apply IH1 at R21; cases R21
-      apply IH2 at R22; cases R22
-      rfl
-  case sync IH1 IH2 =>
-    cases R2 with
-    | value V =>
-      cases V with | sync V1 V2
-      apply Eval.value at V1; apply IH1 at V1
-      apply Eval.value at V2; apply IH2 at V2
-      cases V1; cases V2; rfl
-    | sync R21 R22 =>
-      apply IH1 at R21; cases R21
-      apply IH2 at R22; cases R22
-      rfl
-  case in1 IH =>
-    cases R2 with
-    | value V =>
-      cases V with | in1 V
-      apply Eval.value at V; apply IH at V
-      cases V; rfl
-    | in1 R2' => apply IH at R2'; cases R2'; rfl
-  case in2 IH =>
-    cases R2 with
-    | value V =>
-      cases V with | in2 V
-      apply Eval.value at V; apply IH at V
-      cases V; rfl
-    | in2 R2' => apply IH at R2'; cases R2'; rfl
+  case pair IH1 IH2 => det_binary pair
+  case appE IH1 IH2 => det_binary appE
+  case select IH1 IH2 => det_binary select
+  case in1 IH => det_unary in1
+  case in2 IH => det_unary in2
   case wait IH =>
     cases R2 with
     | value V =>
-      cases V with | wait V
-      apply Eval.value at V; apply IH at V
-      cases V; rfl
-    | wait R2' =>  apply IH at R2'; cases R2'; rfl
-  case trig IH =>
+        cases V
+        have H := IH (Eval.value IsMValue.chan)
+        cases H; rfl
+    | wait R2' => apply IH at R2'; cases R2'; rfl
+  case watch IH =>
     cases R2 with
     | value V =>
-      cases V with | trig V
-      apply Eval.value at V; apply IH at V
-      cases V; rfl
-    | trig R2' =>  apply IH at R2'; cases R2'; rfl
+        cases V
+        have H := IH (Eval.value IsMValue.loc)
+        cases H; rfl
+    | watch R2' => apply IH at R2'; cases R2'; rfl
   case tail IH =>
     cases R2 with
     | value V =>
-      cases V with | tail V
-      apply Eval.value at V; apply IH at V
-      cases V; rfl
-    | tail R2' =>  apply IH at R2'; cases R2'; rfl
+        cases V
+        have H := IH (Eval.value IsMValue.loc)
+        cases H; rfl
+    | tail R2' => apply IH at R2'; cases R2'; rfl
   case pr1 IH =>
     cases R2 with
     | value V => cases V
@@ -156,42 +139,42 @@ theorem Eval.determ : e ⇓ e1 → e ⇓ e2 → e1 = e2 := by
       apply IH at R2'; cases R2'
       rfl
 
-open Val
+open MVal
 
 
-lemma Val.in1_inj {v w : Val} : v.in1 = w.in1 → v = w := by
-  intros E
-  cases v
-  cases w
-  cases E;rfl
+/-- `MVal.in1` is injective. -/
+lemma MVal.in1_inj {v w : MVal} : v.in1 = w.in1 → v = w := by
+  intro E; cases v; cases w; cases E; rfl
 
-theorem Adv.determ : e [i]⇘ e1 → e [i]⇘ e2 → e1 = e2 := by
+theorem Adv.determ : s [e]⇘ s1 → s [e]⇘ s2 → s1 = s2 := by
   intro R1
-  revert e2
+  revert s2
   induction R1 <;> intros e2 R2
-  case wait => cases R2;rfl
+  case wait =>
+    apply Adv.wait_inv at R2
+    exact Eval.determ (by assumption) R2.2
   case appE R1' IH =>
-    apply Adv.appE_decompose at R2
+    apply Adv.appE_inv at R2
     rcases R2 with ⟨v', ε', R21,R22⟩
     apply IH at R21
     injections;subst_eqs
     have E := Eval.determ R1' R22
     injections;subst_eqs
     rfl
-  case sync1 M1 M2 R IH =>
-    apply Adv.sync1_decompose M1 M2 at R2
+  case select1 M1 M2 R IH =>
+    apply Adv.select1_inv M1 M2 at R2
     rcases R2 with ⟨v', ε', rfl, R21⟩
     apply IH at R21
     injections;subst_eqs
     rfl
-  case sync2 M1 M2 R IH =>
-    apply Adv.sync2_decompose M1 M2 at R2
+  case select2 M1 M2 R IH =>
+    apply Adv.select2_inv M1 M2 at R2
     rcases R2 with ⟨v', ε', rfl, R21⟩
     apply IH at R21
     injections;subst_eqs
     rfl
-  case sync3 M1 M2 R11 R12 IH1 IH2 =>
-    apply Adv.sync3_decompose M1 M2 at R2
+  case select3 M1 M2 R11 R12 IH1 IH2 =>
+    apply Adv.select3_inv M1 M2 at R2
     rcases R2 with ⟨w1 ,w2, ε' , ε'', rfl, R21, R22⟩
     apply IH1 at R21
     injections;subst_eqs
@@ -199,20 +182,21 @@ theorem Adv.determ : e [i]⇘ e1 → e [i]⇘ e2 → e1 = e2 := by
     injections;subst_eqs
     rfl
   case tail =>
-    apply Adv.tail_decompose at R2
-    rcases R2 with ⟨v', ε', rfl, rfl⟩
-    subst_eqs; rfl
-  case trig L1 Td1 Hd1 =>
-    cases R2 with | trig L2 Td2 Hd2
+    obtain ⟨a, b⟩ := e2
+    apply Adv.tail_inv at R2
+    obtain ⟨rfl, rfl⟩ := R2
+    rfl
+  case watch L1 Td1 Hd1 =>
+    cases R2 with | watch L2 Td2 Hd2
     rw[L1] at L2
     injection L2; subst_eqs
     rw[Hd1] at Hd2
-    apply Val.in1_inj at Hd2; subst Hd2
+    apply MVal.in1_inj at Hd2; subst Hd2
     rfl
 
 
 
-theorem Update.determ : ε [i]⇒ ε1 → ε [i]⇒ ε2 → ε1 = ε2 := by
+theorem Update.determ : ε [e]⇒ ε1 → ε [e]⇒ ε2 → ε1 = ε2 := by
   intros R1 R2
   cases R1
   case skip Ch =>
@@ -220,7 +204,7 @@ theorem Update.determ : ε [i]⇒ ε1 → ε [i]⇒ ε2 → ε1 = ε2 := by
     grind
   case adv L Ch R =>
     have E := Update.adv_inv R2 Ch
-    rcases E with ⟨ηN', l', δ', s', p', D', D'', R', L' ,E⟩
+    rcases E with ⟨ηN', l', Δ', s', p', D', D'', R', L' ,E⟩
     have E' := Adv.determ R R'
     injection E' with F1 F2
     cases F1
@@ -234,7 +218,7 @@ theorem Update.determ : ε [i]⇒ ε1 → ε [i]⇒ ε2 → ε1 = ε2 := by
     cases L
     rfl
 
-theorem Updates.determ : ε [i]⇒* ε1 → ε [i]⇒* ε2 → ε1.earlier = ∅ → ε2.earlier = ∅ → ε1 = ε2 := by
+theorem Updates.determ : ε [e]⇒* ε1 → ε [e]⇒* ε2 → ε1.earlier = ∅ → ε2.earlier = ∅ → ε1 = ε2 := by
   intros R1 R2 E1 E2
   induction R1
   case nil ε0 ε1 =>
@@ -261,7 +245,7 @@ theorem Updates.determ : ε [i]⇒* ε1 → ε [i]⇒* ε2 → ε1.earlier = ∅
 -- The reactive step semantics is deterministic  --
 ---------------------------------------------------
 
-theorem ReactStep.determ : e [i]⟹ e1 → e [i]⟹ e2 → e1 = e2 := by
+theorem ReactStep.determ : s [e]⟹ s1 → s [e]⟹ s2 → s1 = s2 := by
   intros R1 R2
   cases R1 with | react R1
   cases R2 with | react R2

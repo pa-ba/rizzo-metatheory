@@ -4,23 +4,32 @@ Additional definitions and lemmas for Mathlib's association list type `AList`
 import Init.Data.List.Perm
 import Mathlib.Data.List.Lattice
 import Mathlib.Data.List.AList
+import Mathlib.Data.Finset.Defs
+
+/-- `headTail h` splits a membership hypothesis `h : x ∈ a :: l` into the
+head case (`x = a`, substituted by `rfl`) and the tail case (`x ∈ l`),
+reusing the name `h` in the tail.
+ -/
+macro "headTail " h:ident : tactic =>
+  `(tactic| rcases List.mem_cons.mp $h with $(Lean.mkIdent `rfl) | $h:ident)
+
 
 notation "⟪ " l ", " p " ⟫" => AList.mk l p
 
 abbrev AList' α β := AList (fun _ : α => β)
 
 
-def AList.Sub (xs ys : AList β) : Prop := xs.entries.Sublist ys.entries
+def AList.le (xs ys : AList β) : Prop := xs.entries.Sublist ys.entries
 
 @[refl,simp]
-def AList.refl (xs : AList β) : xs.Sub xs := by simp [AList.Sub]
+lemma AList.refl (xs : AList β) : xs.le xs := by simp [AList.le]
 
 
-def AList.refl' (xs : AList β) : xs = xs' → xs.Sub xs' := by
+lemma AList.refl' (xs : AList β) : xs = xs' → xs.le xs' := by
   intros; subst_eqs;rfl
 
 @[simp]
-def AList.Sub_empty (xs : AList β) : AList.Sub ∅ xs := by simp [AList.Sub]
+lemma AList.le_empty (xs : AList β) : AList.le ∅ xs := by simp [AList.le]
 
 
 
@@ -31,20 +40,20 @@ lemma AList.length_nonempty {xs : AList β} :   xs.entries.length > 0 → xs ≠
   . cases L
   . intro L; cases L
 
-def AList.Sub.trans {l l' l'' : (AList β)} : l.Sub l' → l'.Sub l'' → l.Sub l'' := by
+lemma AList.le.trans {l l' l'' : (AList β)} : l.le l' → l'.le l'' → l.le l'' := by
     intros S T
-    simp [AList.Sub] at *
+    simp [AList.le] at *
     apply S.trans T
 
-instance : IsTrans (AList β) AList.Sub where
+instance : IsTrans (AList β) AList.le where
   trans := by
     intros xs ys zs S T; apply S.trans T
 
 
-instance : Trans (α := AList β) AList.Sub AList.Sub AList.Sub where
+instance : Trans (α := AList β) AList.le AList.le AList.le where
   trans := by
     intros xs ys zs S T
-    simp [AList.Sub] at *
+    simp [AList.le] at *
     apply S.trans T
 
 
@@ -52,30 +61,38 @@ def AList.cons {α} [DecidableEq α] {β : α → Type} (k : α) (v : β k) (l :
   ⟨ ⟨ k, v ⟩ :: l.entries , l.nodupKeys.cons p ⟩
 
 @[simp]
-lemma AList.Sub.cons {α} [DecidableEq α] {β : α → Type}  (k : α) (v : β k)  (l : AList β) (p : k ∉ l)
-  : l.Sub (l.cons k v p) := by
-  simp[AList.Sub]; apply List.Sublist.cons; rfl
+lemma AList.le.cons {α} [DecidableEq α] {β : α → Type}  (k : α) (v : β k)  (l : AList β) (p : k ∉ l)
+  : l.le (l.cons k v p) := by
+  simp[AList.le]; apply List.Sublist.cons; rfl
 
 
 
 @[simp]
-lemma AList.Sub.cons_both {α} [DecidableEq α] {β : α → Type}  {k : α} {v : β k}  {xs ys : AList β} {p : k ∉ xs} {p' : k ∉ ys}
-  : xs.Sub ys → (xs.cons k v p).Sub (ys.cons k v p') := by
+lemma AList.le.cons_both {α} [DecidableEq α] {β : α → Type} {k v} {xs ys : AList β} {p : k ∉ xs} {p' : k ∉ ys}
+  : xs.le ys → (xs.cons k v p).le (ys.cons k v p') := by
   intros S
-  simp[AList.Sub]; apply List.Sublist.cons₂;
+  simp[AList.le]; apply List.Sublist.cons_cons;
   assumption
+
+/-- Membership is monotone along `AList.le`. -/
+lemma AList.le.mem {α} {β : α → Type} {xs ys : AList β} {l} :
+    xs.le ys → l ∈ xs → l ∈ ys := by
+  intro h hl
+  rw [AList.mem_keys] at hl ⊢
+  exact ((h.map Sigma.fst).subset) hl
+
+/-- Looking up a different key is unaffected by a `cons`. -/
+lemma AList.lookup_cons_ne {α} [DecidableEq α] {β : α → Type} {k k' v}
+    {xs : AList β} (p : k ∉ xs) :
+    k' ≠ k → (xs.cons k v p).lookup k' = xs.lookup k' := by
+  intro h
+  simp [AList.lookup, AList.cons, List.dlookup_cons_ne _ ⟨k, v⟩ h]
 
 def AList.alloc {β : Nat → Type } (η : AList β) : Nat := (η.keys.max?.getD 0).succ
 
 
-def AList.greater_fresh {β : Nat → Type } (η : AList β) : (∀ x ∈ η, l > x) → l ∉ η := by
-  intros F M
-  apply F at M
-  omega
 
-
-
-def AList.alloc_greater {β : Nat → Type } (η : AList β) : k ∈ η →  (η.alloc > k) := by
+lemma AList.alloc_greater {β : Nat → Type } (η : AList β) : k ∈ η →  (η.alloc > k) := by
   intro M
   simp [AList.alloc]
   have M' : k ∈ η.keys := by assumption
@@ -83,14 +100,14 @@ def AList.alloc_greater {β : Nat → Type } (η : AList β) : k ∈ η →  (η
   grind
 
 
-def AList.alloc_fresh' {β : Nat → Type } (η : AList β) : k ≥ η.alloc → k ∉ η := by
+lemma AList.alloc_fresh' {β : Nat → Type } (η : AList β) : k ≥ η.alloc → k ∉ η := by
   intros L M
   apply η.alloc_greater at M
   generalize η.alloc = m at *
   grind
 
 @[simp]
-def AList.alloc_fresh {β : Nat → Type } (η : AList β) : η.alloc ∉ η := by
+lemma AList.alloc_fresh {β : Nat → Type } (η : AList β) : η.alloc ∉ η := by
   apply η.alloc_fresh'
   grind
 
@@ -109,7 +126,7 @@ lemma List.entryMap_NodupKeys (l : List (Sigma (fun _ : α => β))) (f : β → 
   : l.NodupKeys → (l.entryMap f).NodupKeys := by
   simp[NodupKeys]
 
-lemma List.dlookup_entryMap {α β γ} {f : β → γ} {xs : List (Sigma (fun _ : α => β))} [DecidableEq α] {l : α}:
+lemma List.dlookup_entryMap {α β γ} {f : β → γ} {xs : List (Sigma (fun _ : α => β))} [DecidableEq α] {l}:
    List.dlookup l (List.entryMap f xs) = Option.map f (List.dlookup l xs) := by
     cases xs
     . simp [List.entryMap]
@@ -118,7 +135,7 @@ lemma List.dlookup_entryMap {α β γ} {f : β → γ} {xs : List (Sigma (fun _ 
       . simp
       . apply dlookup_entryMap
 
-lemma List.isElem?_cons {xs ys : List α}: x ∈ (xs ++ ys)[i]? → i < length xs → x ∈ xs[i]? := by
+lemma List.isElem?_cons {xs ys} : x ∈ (xs ++ ys)[i]? → i < length xs → x ∈ xs[i]? := by
   intros E L
   revert i
   induction xs <;> intro i E L <;> simp at *
@@ -127,7 +144,7 @@ lemma List.isElem?_cons {xs ys : List α}: x ∈ (xs ++ ys)[i]? → i < length x
     . assumption
     . apply IH <;> assumption
 
-lemma List.isElem?_cons' {xs ys : List α}: x ∈ (xs ++ ys)[i]? → ¬ i < length xs → x ∈ ys[i-length xs]? := by
+lemma List.isElem?_cons' {xs ys} : x ∈ (xs ++ ys)[i]? → ¬ i < length xs → x ∈ ys[i-length xs]? := by
   intros E L
   revert i
   induction xs <;> intro i E L <;> simp at *
@@ -162,7 +179,7 @@ def AList.append {α} [DecidableEq α] {β : α → Type}
   ⟩
 
 
-lemma AList.concat_append  {α} [DecidableEq α] {β : α → Type} {l : α} {s : β l}  {xs ys : AList β}
+lemma AList.concat_append  {α} [DecidableEq α] {β : α → Type} {l s} {xs ys : AList β}
     {p' : l ∉ ys}
     {D' : xs.Disjoint (ys.cons l s p')}
     {p : l ∉ xs}
@@ -175,7 +192,7 @@ lemma AList.concat_append  {α} [DecidableEq α] {β : α → Type} {l : α} {s 
   simp[cons,append,concat]
 
 
-lemma List.concat_non_empty {xs : List α} : [] ≠ xs ++ [x] := by
+lemma List.concat_non_empty {xs} : [] ≠ xs ++ [x] := by
   intros E;
   cases xs <;> grind
 
@@ -208,13 +225,13 @@ def AList.reverse {α} [DecidableEq α] {β : α → Type} (xs : AList β) : ALi
    ⟩
 
 @[simp]
-def AList.nin_reverse {α} [DecidableEq α] {β : α → Type} {xs : AList β} {l : α}:
+lemma AList.nin_reverse {α} [DecidableEq α] {β : α → Type} {xs : AList β} {l}:
   l ∉ xs → l ∉ xs.reverse := by
   cases xs with | mk xs N
   simp[AList.reverse,AList.mem_keys,AList.keys,List.keys]
 
 
-def AList.reverse_cons {α} [DecidableEq α] {β : α → Type} {xs : AList β} {l : α} {x : β l}
+lemma AList.reverse_cons {α} [DecidableEq α] {β : α → Type} {xs : AList β} {l x}
   {p : l ∉ xs} {p' : l ∉ xs.reverse} :
   (xs.cons l x p).reverse = xs.reverse.concat l x p' := by
   cases xs with | mk xs N
@@ -223,7 +240,7 @@ def AList.reverse_cons {α} [DecidableEq α] {β : α → Type} {xs : AList β} 
 
 
 @[simp]
-def AList.reverse_reverse {α} [DecidableEq α] {β : α → Type} {xs : AList β} :
+lemma AList.reverse_reverse {α} [DecidableEq α] {β : α → Type} {xs : AList β} :
   xs.reverse.reverse = xs := by
   cases xs with | mk xs N
   rw[AList.ext_iff]
@@ -284,8 +301,8 @@ lemma AList.Disjoint.symm {xs ys : AList β} : xs.Disjoint ys → ys.Disjoint xs
 -------------------------
 
 
-lemma AList.Sub_Disjoint  (η η' η'' : AList β) : η.Sub η' → η'.Disjoint η'' → η.Disjoint η'' := by
-  simp[Disjoint, AList.Sub, AList.keys]
+lemma AList.le_Disjoint  (η η' η'' : AList β) : η.le η' → η'.Disjoint η'' → η.Disjoint η'' := by
+  simp[Disjoint, AList.le, AList.keys]
   intros S D k E
   apply List.Sublist.subset at S
   unfold Subset at S
@@ -297,7 +314,7 @@ lemma AList.Sub_Disjoint  (η η' η'' : AList β) : η.Sub η' → η'.Disjoint
   apply E
 
 lemma AList.cons_cons_Disjoint_keys
-    {α} [DecidableEq α] {β : Type} {l:α} {s:β} {s':β'} {xs : AList' α β} {ys : AList' α β'}
+    {α} [DecidableEq α] {β : Type} {l s s'} {xs : AList' α β} {ys : AList' α β'}
     {p : l ∉ xs} {p':l ∉ ys}:
     (xs.cons l s p).keys.Disjoint ys.keys → xs.keys.Disjoint (ys.cons l s' p').keys := by
   intros D
@@ -307,7 +324,7 @@ lemma AList.cons_cons_Disjoint_keys
   . apply D.2
 
 lemma AList.concat_cons_Disjoint_keys
-    {α} [DecidableEq α] {β : Type} {l:α} {s:β} {s':β'} {xs : AList' α β} {ys : AList' α β'}
+    {α} [DecidableEq α] {β : Type} {l s s'} {xs : AList' α β} {ys : AList' α β'}
     {p : l ∉ xs} {p':l ∉ ys}:
     (xs.concat l s p).keys.Disjoint ys.keys → xs.keys.Disjoint (ys.cons l s' p').keys := by
   intros D
@@ -320,7 +337,7 @@ lemma AList.concat_cons_Disjoint_keys
   apply R.mpr; apply D
 
 lemma AList.concat_cons_Disjoint_nin
-    {α} [DecidableEq α] {β : α → Type} {l:α} {s:β l} {xs ys : AList β}  {p : l ∉ xs} :
+    {α} [DecidableEq α] {β : α → Type} {l s} {xs ys : AList β}  {p : l ∉ xs} :
     (xs.concat l s p).Disjoint ys → l ∉ ys := by
   intros D
   simp[AList.Disjoint] at D
@@ -328,7 +345,7 @@ lemma AList.concat_cons_Disjoint_nin
   simp[AList.concat,AList.keys,List.keys]
 
 lemma AList.concat_cons_Disjoint_nin_keys
-    {α} [DecidableEq α]  {β : Type} {l:α} {s:β} {xs : AList' α β} {ys : AList' α β'} {p : l ∉ xs} :
+    {α} [DecidableEq α]  {β : Type} {l s} {xs : AList' α β} {ys : AList' α β'} {p : l ∉ xs} :
     (xs.concat l s p).keys.Disjoint ys.keys → l ∉ ys := by
   intros D
   apply D
@@ -336,7 +353,7 @@ lemma AList.concat_cons_Disjoint_nin_keys
 
 
 lemma AList.Disjoint_cons {α} [DecidableEq α] {β : α → Type} {xs ys : AList β}
-    {l:α} {x:β l}  {p : l ∉ xs} : (xs.cons l x p).Disjoint ys →  xs.Disjoint ys := by
+    {l x}  {p : l ∉ xs} : (xs.cons l x p).Disjoint ys →  xs.Disjoint ys := by
   intros D
   apply List.disjoint_of_disjoint_cons_left
   assumption

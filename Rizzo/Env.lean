@@ -7,27 +7,30 @@
 import Mathlib.Data.Finset.Defs
 import Rizzo.AList
 
-import Rizzo.Syntax
+import Rizzo.Terms
 
 open Term
 open Typ
 
-
-structure Inp : Type where
+---------------------------
+-- Definition of events. --
+-- (`e` in Fig. 1)     --
+---------------------------
+structure Event : Type where
     mk ::
     chan : Chan
-    val : Val
+    val : Term
 
-notation x " ↦ " y  => Inp.mk x y
+notation κ " ↦ " v  => Event.mk κ v
 
 
 
 structure Sig where
   mk ::
   type : Typ
-  head : Val
+  head : MVal
   ticked : Bool
-  tail : Val
+  tail : MVal
 
 def Sig.tick (s : Sig) := {s with ticked := true}
 
@@ -36,19 +39,16 @@ notation "mksig" => Sig.mk
 
 abbrev HeapTy := AList' Loc Typ
 
-abbrev HeapTy.Sub : HeapTy → HeapTy → Prop := AList.Sub
+abbrev HeapTy.le : HeapTy → HeapTy → Prop := AList.le
 
-
-@[simp]
-def HeapTy.Sub_empty (H : HeapTy) : HeapTy.Sub ∅ H := by simp
 
 abbrev Heap := AList' Loc Sig
 
 namespace Heap
 
-abbrev Sub : Heap → Heap → Prop := AList.Sub
+abbrev le : Heap → Heap → Prop := AList.le
 
-lemma Sub.trans' {η η' η'' : Heap} : η'.Sub η'' → η.Sub η' → η.Sub η'' := by
+lemma le.trans' {η η' η'' : Heap} : η'.le η'' → η.le η' → η.le η'' := by
   intros S1 S2; apply S2.trans S1
 
 def type (η : Heap) : HeapTy :=  ⟨ η.entries.entryMap (fun r => r.type  ) , List.entryMap_NodupKeys _ _ (η.nodupKeys) ⟩
@@ -59,7 +59,7 @@ lemma type_lookup {η : Heap} : η.type.lookup l = (η.lookup l).map Sig.type :=
 
 
 
-lemma type_cons {η: Heap} {p : l ∉ η} {p' : l ∉ η.type} :
+lemma type_cons {η : Heap} {p p'} :
     type (η.cons l s p) = η.type.cons l s.type p' := by
   rw [AList.ext_iff]
   cases η with | mk η D
@@ -83,7 +83,7 @@ lemma type_fresh {η:Heap} : l ∈ η.type ↔ l ∈ η := by
   rw[<-AList.lookup_isSome]
 
 lemma concat_inv {α} [DecidableEq α] {β : Type}  {η η' : AList' α β}
-    {l l':α} {s s':β} {p' : l' ∉ η'} {p : l ∉ η}
+    {l l' s s' p' p}
     : η.concat l s p = η'.concat l' s' p' → η = η' /\ l = l' /\ s = s' := by
   intros E
   rw[AList.ext_iff] at E
@@ -92,7 +92,17 @@ lemma concat_inv {α} [DecidableEq α] {β : Type}  {η η' : AList' α β}
   rw[<-AList.ext_iff] at E
   grind
 
+/-- Looking up the freshly-concatenated key returns its value. -/
+lemma lookup_concat_self {ηE : Heap} {l₀ s₀} (p : l₀ ∉ ηE) :
+    (ηE.concat l₀ s₀ p).lookup l₀ = some s₀ := by
+  have hp : l₀ ∉ ηE.entries.keys := by rw [AList.mem_keys] at p; exact p
+  simp [AList.lookup, AList.concat, List.concat_eq_append, List.dlookup_eq_none.mpr hp]
 
+/-- Looking up a different key ignores the concatenated entry. -/
+lemma lookup_concat_ne {ηE : Heap} {l₀ l s₀} (p : l₀ ∉ ηE) :
+    l ≠ l₀ → (ηE.concat l₀ s₀ p).lookup l = ηE.lookup l := by
+  intro h
+  simp [AList.lookup, AList.concat, List.concat_eq_append, h]
 
 end Heap
 
@@ -101,27 +111,27 @@ def Term.isSome (t : Term) :=
   | in1 _ => true
   | _ => false
 @[simp]
-def Val.isSome (v : Val) := v.val.isSome
+def MVal.isSome (v : MVal) := v.val.isSome
 
 lemma Term.isSome_ex {t : Term} : t.isSome → ∃ (s : Term), t = s.in1 := by
   intros T
   simp[Term.isSome] at T
   grind
 
-lemma Val.isSome_ex {t : Val} : t.isSome → ∃ (s : Term), t = s.in1 := by
-  intros T
-  simp[Term.isSome] at T
-  grind
+------------------------------------
+-- Definition of ticked predicate --
+-- (Fig. 8)                       --
+------------------------------------
 
 def Term.ticked (t : Term) (η : Heap) (κ : Chan) : Bool :=
   match t with
   | .wait (.chan κ') => κ = κ'
-  | .trig (.loc l) =>
+  | .watch (.loc l) =>
     match η.lookup l with
     | .some s => s.ticked /\ s.head.isSome
     | .none => false
   | .never => false
-  | .sync s t => s.ticked η κ \/ t.ticked η κ
+  | .select s t => s.ticked η κ \/ t.ticked η κ
   | .appE _ t => t.ticked η κ
   | .tail (.loc l) =>
     match η.lookup l with
@@ -130,10 +140,7 @@ def Term.ticked (t : Term) (η : Heap) (κ : Chan) : Bool :=
   | _ => false
 
 
-abbrev Val.ticked (t : Val) (η : Heap) (κ : Chan) : Bool := t.val.ticked η κ
-
-
-
+abbrev MVal.ticked (t : MVal) (η : Heap) (κ : Chan) : Bool := t.val.ticked η κ
 
 structure Store where
   now : Heap
@@ -148,25 +155,21 @@ instance : EmptyCollection Store where
 namespace Store
 
 @[grind]
-structure Sub (σ σ' : Store) : Prop where
-  now : σ.now.Sub σ'.now
+structure le (σ σ' : Store) : Prop where
+  now : σ.now.le σ'.now
   earlier : σ.earlier = σ'.earlier
 
 @[refl,simp]
-def refl (σ : Store) : σ.Sub σ
+def refl (σ : Store) : σ.le σ
   := by constructor <;> rfl
 
 
-def Sub.trans {σ σ' σ'' : Store} : σ.Sub σ' → σ'.Sub σ'' → σ.Sub σ'' := by
+def le.trans {σ σ' σ'' : Store} : σ.le σ' → σ'.le σ'' → σ.le σ'' := by
   intros S T; constructor;
   apply S.now.trans T.now
   rw [S.earlier, T.earlier]
 
-lemma Sub.trans' {σ σ' σ'' : Heap} : σ'.Sub σ'' → σ.Sub σ' → σ.Sub σ'' := by
-  intros S1 S2; apply S2.trans S1
-
-
-instance : IsTrans Store Store.Sub where
+instance : IsTrans Store Store.le where
   trans := by
     intros σ σ2 σ3 S T; apply S.trans T
 
@@ -187,9 +190,9 @@ def insert (σ : Store) (l : Loc) (s : Sig) (p : l ∉ σ) : Store :=
   σ.earlier
 
 @[simp]
-lemma Sub.insert (σ : Store) (l : Loc) (s : Sig) (p : l ∉ σ)
-  : σ.Sub (σ.insert l s p) := by
-  constructor; apply AList.Sub.cons; apply Store.now_fresh p
+lemma le.insert (σ : Store) (l : Loc) (s : Sig) (p : l ∉ σ)
+  : σ.le (σ.insert l s p) := by
+  constructor; apply AList.le.cons; apply Store.now_fresh p
   simp [Store.insert]
 
 def alloc (σ : Store) : Loc := max (σ.now.alloc) (σ.earlier.alloc)
@@ -215,7 +218,7 @@ end Store
 abbrev ChanCtx : Type := AList (fun _ : Chan => Typ)
 
 
-abbrev ChanCtx.Sub : ChanCtx → ChanCtx → Prop := AList.Sub
+abbrev ChanCtx.le : ChanCtx → ChanCtx → Prop := AList.le
 
 structure Env where
   store : Store
@@ -229,30 +232,28 @@ abbrev now (ε : Env) := ε.store.now
 abbrev earlier (ε : Env) := ε.store.earlier
 
 @[grind]
-structure Sub (ε ε' : Env) : Prop where
-  store : ε.store.Sub ε'.store
-  chans : ε.chans.Sub ε'.chans
+structure le (ε ε' : Env) : Prop where
+  store : ε.store.le ε'.store
+  chans : ε.chans.le ε'.chans
 
 @[refl,simp]
-def refl (ε : Env) : ε.Sub ε := by constructor <;> rfl
+def refl (ε : Env) : ε.le ε := by constructor <;> rfl
 
 
-def Sub.trans {ε ε' ε'' : Env} : ε.Sub ε' → ε'.Sub ε'' → ε.Sub ε'' := by
+def le.trans {ε ε' ε'' : Env} : ε.le ε' → ε'.le ε'' → ε.le ε'' := by
   intros S T; constructor;
   apply IsTrans.trans; apply S.store; apply T.store
   apply IsTrans.trans; apply S.chans; apply T.chans
 
-instance : IsTrans Env Env.Sub where
+instance : IsTrans Env Env.le where
   trans := by
     intros ε ε2 ε3 S T; apply S.trans T
 
 instance : Membership Loc Env :=
   ⟨fun ε l => l ∈ ε.store⟩
 
-def alloc (ε : Env) : Loc := ε.store.alloc
-
 lemma eq_inv :
-    ηN ✓[D] ηE ⧸ δ = ηN' ✓[D'] ηE' ⧸ δ' → ηN = ηN' /\ ηE = ηE' /\ δ = δ' := by
+    ηN ✓[D] ηE ⧸ Δ = ηN' ✓[D'] ηE' ⧸ Δ' → ηN = ηN' /\ ηE = ηE' /\ Δ = Δ' := by
   intros E
   cases E
   grind
@@ -269,7 +270,7 @@ lemma List.getElem?_some_length (l : List α) : y ∈ l[x]? -> x < l.length := b
 
 
 
-notation ε ".δ" => Env.chans ε
+notation ε ".Δ" => Env.chans ε
 notation ε ".σ" => Env.store ε
 notation σ ".ηN" => Store.now σ
 notation ε ".σN" => Env.now ε
@@ -293,29 +294,36 @@ lemma Store.lookup_insert (k : Loc) x (σ : Store) (p : k ∉ σ) :
   simp[AList.lookup,Store.insert,AList.cons]
 
 @[grind .]
-lemma AList.Sub.lookup {α} [DecidableEq α] {β : α → Type} {k : α} {x : β k} {xs ys : AList β} :
-  xs.Sub ys → x ∈ xs.lookup k → x ∈ ys.lookup k := by
+lemma AList.le.lookup {α} [DecidableEq α] {β : α → Type} {k x} {xs ys : AList β} :
+  xs.le ys → x ∈ xs.lookup k → x ∈ ys.lookup k := by
   intros S L
-  simp [AList.Sub, AList.lookup] at *
+  simp [AList.le, AList.lookup] at *
   have L' : x ∈ List.dlookup k xs.entries := by assumption
   rw [List.mem_dlookup_iff xs.nodupKeys] at L'
   have E := List.Sublist.mem L' S
   rw [<- List.mem_dlookup_iff ys.nodupKeys] at E
   apply E
 
+/-- A present key has the same lookup in a larger heap. -/
+lemma AList.lookup_eq_of_le_mem {α} [DecidableEq α] {β : α → Type} {xs ys : AList β} {l} :
+    xs.le ys → l ∈ xs → ys.lookup l = xs.lookup l := by
+  intro hle hl
+  obtain ⟨sl, hsl⟩ := Option.isSome_iff_exists.mp (AList.lookup_isSome.mpr hl)
+  rw [hsl]; exact AList.le.lookup hle hsl
+
 @[grind .,simp]
-lemma Heap.Sub.type (η η' : Heap) : η.Sub η' → η.type.Sub η'.type := by
+lemma Heap.le.type (η η' : Heap) : η.le η' → η.type.le η'.type := by
   intro S
-  simp [Heap.type,List.entryMap, AList.Sub] at *
+  simp [Heap.type,List.entryMap, AList.le] at *
   apply List.Sublist.map
   apply S
 
 
-lemma Store.Sub_type {σ σ' : Store} : σ.Sub σ' → σ.type.Sub σ'.type := by
+lemma Store.le_type {σ σ' : Store} : σ.le σ' → σ.type.le σ'.type := by
   intros S
   rcases S with ⟨S1, S2⟩
-  apply Heap.Sub.type at S1
-  simp[Store.type, AList.Sub, AList.append] at *
+  apply Heap.le.type at S1
+  simp[Store.type, AList.le, AList.append] at *
   rw[S2]
   apply List.Sublist.append_left
   assumption
